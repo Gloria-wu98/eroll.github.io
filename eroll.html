@@ -1,1093 +1,727 @@
-{\rtf1\ansi\ansicpg950\cocoartf2822
-\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset136 PingFangTC-Regular;}
-{\colortbl;\red255\green255\blue255;}
-{\*\expandedcolortbl;;}
-\paperw11900\paperh16840\margl1440\margr1440\vieww12720\viewh7240\viewkind0
-\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>學生出勤記錄表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f0f4f8;
+            touch-action: manipulation; /* 防止雙擊縮放 */
+        }
+        .table-container {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch; /* 提升iOS滑動體驗 */
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+        th, td {
+            border: 1px solid #cbd5e1;
+            text-align: center;
+            position: relative;
+        }
+        .date-cell {
+            min-width: 50px; /* 增加寬度 */
+            height: 50px; /* 增加高度 */
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        .date-cell:hover {
+            background-color: #f1f5f9;
+        }
+        .date-cell.tardy { /* 遲到 */
+            background-color: #fee2e2; /* 淡紅色 */
+            color: #b91c1c; /* 深紅色文字 */
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        .date-cell.leave { /* 請假 */
+            background-color: #dbeafe; /* 淡藍色 */
+            color: #1e40af; /* 深藍色文字 */
+            font-weight: bold;
+        }
+        .date-cell.absent { /* 曠課 */
+            background-color: #fef9c3; /* 淡黃色 */
+            color: #a16207; /* 深黃色文字 */
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+        .student-number {
+            position: sticky;
+            left: 0;
+            background-color: #f8fafc;
+            z-index: 10;
+            font-weight: 500;
+            min-width: 80px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            padding: 10px 5px;
+        }
+        .student-number:hover {
+            background-color: #f1f5f9;
+        }
+        .student-number-header {
+            position: sticky;
+            left: 0;
+            background-color: #e0e7ff; /* 淡紫色 */
+            z-index: 30;
+            font-weight: 600;
+            min-width: 80px;
+            text-align: center;
+            font-size: 1.2rem;
+            padding: 12px 5px;
+        }
+        .total-column {
+            position: sticky;
+            right: 0;
+            background-color: #f0f9ff; /* 淡藍色 */
+            font-weight: 600;
+            min-width: 70px;
+            z-index: 10;
+            font-size: 1.2rem;
+        }
+        .header-row th {
+            position: sticky;
+            top: 0;
+            background-color: #e0e7ff; /* 淡紫色 */
+            z-index: 20;
+            padding: 12px 5px;
+            font-size: 1.1rem;
+        }
+        .header-row th:first-child {
+            z-index: 30;
+        }
+        .header-row th:last-child {
+            z-index: 30;
+        }
+        .tooltip {
+            position: absolute;
+            display: none;
+            background-color: #334155; /* 深灰藍 */
+            color: white;
+            padding: 10px 14px;
+            border-radius: 6px;
+            z-index: 100;
+            width: max-content;
+            max-width: 200px;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1rem;
+        }
+        .date-cell:hover .tooltip {
+            display: block;
+        }
+        .controls {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            background-color: #f0f4f8; /* 淡藍灰色 */
+            padding: 15px 0;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap; /* 允許換行 */
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 1.1rem;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid #ccc; /* 添加邊框以區分淺色背景 */
+        }
+        .triangle { /* 請假符號 */
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-bottom: 16px solid #1e40af; /* 深藍色 */
+            display: inline-block;
+        }
+        .empty-cell {
+            background-color: #f8fafc; /* 非常淡的灰色 */
+        }
+        .touch-button { /* 觸控友好的按鈕樣式 */
+            min-height: 48px;
+            min-width: 48px;
+            padding: 12px 16px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            touch-action: manipulation;
+        }
+        select { /* 觸控友好的選擇器 */
+            height: 48px;
+            font-size: 1.1rem;
+            padding: 0 12px;
+        }
+        .modal-button { /* 觸控友好的模態對話框按鈕 */
+            min-height: 48px;
+            min-width: 80px;
+            font-size: 1.1rem;
+            border-radius: 8px;
+            touch-action: manipulation;
+        }
+        input, textarea { /* 觸控友好的輸入框 */
+            font-size: 1.1rem;
+            padding: 12px;
+        }
+        /* 防止iOS縮放 */
+        @media screen and (-webkit-min-device-pixel-ratio:0) {
+            select,
+            textarea,
+            input {
+                font-size: 16px;
+            }
+        }
+        .teacher-info { /* 導師資訊欄位樣式 */
+            background-color: #ede9fe; /* 淡紫色背景 */
+            color: #5b21b6; /* 深紫色文字 */
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 500;
+            margin-bottom: 1rem; /* 與下方元素的間距 */
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-full mx-auto bg-white rounded-lg shadow-lg p-4 md:p-6">
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-indigo-800 mb-2">Gloria老師班級的出缺勤紀錄</h1>
+        <div class="teacher-info">
+            導師：Gloria吳秀蘭老師, Google認證講師, 英文兼台語教師
+        </div>
+        <div class="text-center text-xl font-semibold text-gray-700 mb-6">(2025年)</div>
 
-\f0\fs24 \cf0 <!DOCTYPE html>\
-<html lang="zh-TW">\
-<head>\
-    <meta charset="UTF-8">\
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">\
-    <title>
-\f1 \'be\'c7\'a5\'cd\'a5\'58\'b6\'d4\'b0\'4f\'bf\'fd\'aa\'ed
-\f0 </title>\
-    <script src="https://cdn.tailwindcss.com"></script>\
-    <style>\
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');\
-        body \{\
-            font-family: 'Noto Sans TC', sans-serif;\
-            background-color: #f0f4f8;\
-            touch-action: manipulation; /* 
-\f1 \'a8\'be\'a4\'ee\'c2\'f9\'c0\'bb\'c1\'59\'a9\'f1
-\f0  */\
-        \}\
-        .table-container \{\
-            overflow-x: auto;\
-            -webkit-overflow-scrolling: touch; /* 
-\f1 \'b4\'a3\'a4\'c9
-\f0 iOS
-\f1 \'b7\'c6\'b0\'ca\'c5\'e9\'c5\'e7
-\f0  */\
-        \}\
-        table \{\
-            border-collapse: collapse;\
-            width: 100%;\
-        \}\
-        th, td \{\
-            border: 1px solid #cbd5e1;\
-            text-align: center;\
-            position: relative;\
-        \}\
-        .date-cell \{\
-            min-width: 50px; /* 
-\f1 \'bc\'57\'a5\'5b\'bc\'65\'ab\'d7
-\f0  */\
-            height: 50px; /* 
-\f1 \'bc\'57\'a5\'5b\'b0\'aa\'ab\'d7
-\f0  */\
-            cursor: pointer;\
-            touch-action: manipulation;\
-        \}\
-        .date-cell:hover \{\
-            background-color: #f1f5f9;\
-        \}\
-        .date-cell.tardy \{ /* 
-\f1 \'bf\'f0\'a8\'ec
-\f0  */\
-            background-color: #fee2e2; /* 
-\f1 \'b2\'48\'ac\'f5\'a6\'e2
-\f0  */\
-            color: #b91c1c; /* 
-\f1 \'b2\'60\'ac\'f5\'a6\'e2\'a4\'e5\'a6\'72
-\f0  */\
-            font-weight: bold;\
-            font-size: 1.2rem;\
-        \}\
-        .date-cell.leave \{ /* 
-\f1 \'bd\'d0\'b0\'b2
-\f0  */\
-            background-color: #dbeafe; /* 
-\f1 \'b2\'48\'c2\'c5\'a6\'e2
-\f0  */\
-            color: #1e40af; /* 
-\f1 \'b2\'60\'c2\'c5\'a6\'e2\'a4\'e5\'a6\'72
-\f0  */\
-            font-weight: bold;\
-        \}\
-        .date-cell.absent \{ /* 
-\f1 \'c3\'6d\'bd\'d2
-\f0  */\
-            background-color: #fef9c3; /* 
-\f1 \'b2\'48\'b6\'c0\'a6\'e2
-\f0  */\
-            color: #a16207; /* 
-\f1 \'b2\'60\'b6\'c0\'a6\'e2\'a4\'e5\'a6\'72
-\f0  */\
-            font-weight: bold;\
-            font-size: 1.2rem;\
-        \}\
-        .student-number \{\
-            position: sticky;\
-            left: 0;\
-            background-color: #f8fafc;\
-            z-index: 10;\
-            font-weight: 500;\
-            min-width: 80px;\
-            text-align: center;\
-            cursor: pointer;\
-            font-size: 1.2rem;\
-            padding: 10px 5px;\
-        \}\
-        .student-number:hover \{\
-            background-color: #f1f5f9;\
-        \}\
-        .student-number-header \{\
-            position: sticky;\
-            left: 0;\
-            background-color: #e0e7ff; /* 
-\f1 \'b2\'48\'b5\'b5\'a6\'e2
-\f0  */\
-            z-index: 30;\
-            font-weight: 600;\
-            min-width: 80px;\
-            text-align: center;\
-            font-size: 1.2rem;\
-            padding: 12px 5px;\
-        \}\
-        .total-column \{\
-            position: sticky;\
-            right: 0;\
-            background-color: #f0f9ff; /* 
-\f1 \'b2\'48\'c2\'c5\'a6\'e2
-\f0  */\
-            font-weight: 600;\
-            min-width: 70px;\
-            z-index: 10;\
-            font-size: 1.2rem;\
-        \}\
-        .header-row th \{\
-            position: sticky;\
-            top: 0;\
-            background-color: #e0e7ff; /* 
-\f1 \'b2\'48\'b5\'b5\'a6\'e2
-\f0  */\
-            z-index: 20;\
-            padding: 12px 5px;\
-            font-size: 1.1rem;\
-        \}\
-        .header-row th:first-child \{\
-            z-index: 30;\
-        \}\
-        .header-row th:last-child \{\
-            z-index: 30;\
-        \}\
-        .tooltip \{\
-            position: absolute;\
-            display: none;\
-            background-color: #334155; /* 
-\f1 \'b2\'60\'a6\'c7\'c2\'c5
-\f0  */\
-            color: white;\
-            padding: 10px 14px;\
-            border-radius: 6px;\
-            z-index: 100;\
-            width: max-content;\
-            max-width: 200px;\
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);\
-            top: 100%;\
-            left: 50%;\
-            transform: translateX(-50%);\
-            font-size: 1rem;\
-        \}\
-        .date-cell:hover .tooltip \{\
-            display: block;\
-        \}\
-        .controls \{\
-            position: sticky;\
-            top: 0;\
-            z-index: 40;\
-            background-color: #f0f4f8; /* 
-\f1 \'b2\'48\'c2\'c5\'a6\'c7\'a6\'e2
-\f0  */\
-            padding: 15px 0;\
-        \}\
-        .legend \{\
-            display: flex;\
-            flex-wrap: wrap; /* 
-\f1 \'a4\'b9\'b3\'5c\'b4\'ab\'a6\'e6
-\f0  */\
-            gap: 16px;\
-            margin-top: 8px;\
-            font-size: 1.1rem;\
-        \}\
-        .legend-item \{\
-            display: flex;\
-            align-items: center;\
-            gap: 8px;\
-        \}\
-        .legend-color \{\
-            width: 20px;\
-            height: 20px;\
-            border-radius: 4px;\
-            border: 1px solid #ccc; /* 
-\f1 \'b2\'4b\'a5\'5b\'c3\'e4\'ae\'d8\'a5\'48\'b0\'cf\'a4\'c0\'b2\'4c\'a6\'e2\'ad\'49\'b4\'ba
-\f0  */\
-        \}\
-        .triangle \{ /* 
-\f1 \'bd\'d0\'b0\'b2\'b2\'c5\'b8\'b9
-\f0  */\
-            width: 0;\
-            height: 0;\
-            border-left: 10px solid transparent;\
-            border-right: 10px solid transparent;\
-            border-bottom: 16px solid #1e40af; /* 
-\f1 \'b2\'60\'c2\'c5\'a6\'e2
-\f0  */\
-            display: inline-block;\
-        \}\
-        .empty-cell \{\
-            background-color: #f8fafc; /* 
-\f1 \'ab\'44\'b1\'60\'b2\'48\'aa\'ba\'a6\'c7\'a6\'e2
-\f0  */\
-        \}\
-        .touch-button \{ /* 
-\f1 \'c4\'b2\'b1\'b1\'a4\'cd\'a6\'6e\'aa\'ba\'ab\'f6\'b6\'73\'bc\'cb\'a6\'a1
-\f0  */\
-            min-height: 48px;\
-            min-width: 48px;\
-            padding: 12px 16px;\
-            font-size: 1.1rem;\
-            border-radius: 8px;\
-            touch-action: manipulation;\
-        \}\
-        select \{ /* 
-\f1 \'c4\'b2\'b1\'b1\'a4\'cd\'a6\'6e\'aa\'ba\'bf\'ef\'be\'dc\'be\'b9
-\f0  */\
-            height: 48px;\
-            font-size: 1.1rem;\
-            padding: 0 12px;\
-        \}\
-        .modal-button \{ /* 
-\f1 \'c4\'b2\'b1\'b1\'a4\'cd\'a6\'6e\'aa\'ba\'bc\'d2\'ba\'41\'b9\'ef\'b8\'dc\'ae\'d8\'ab\'f6\'b6\'73
-\f0  */\
-            min-height: 48px;\
-            min-width: 80px;\
-            font-size: 1.1rem;\
-            border-radius: 8px;\
-            touch-action: manipulation;\
-        \}\
-        input, textarea \{ /* 
-\f1 \'c4\'b2\'b1\'b1\'a4\'cd\'a6\'6e\'aa\'ba\'bf\'e9\'a4\'4a\'ae\'d8
-\f0  */\
-            font-size: 1.1rem;\
-            padding: 12px;\
-        \}\
-        /* 
-\f1 \'a8\'be\'a4\'ee
-\f0 iOS
-\f1 \'c1\'59\'a9\'f1
-\f0  */\
-        @media screen and (-webkit-min-device-pixel-ratio:0) \{\
-            select,\
-            textarea,\
-            input \{\
-                font-size: 16px;\
-            \}\
-        \}\
-        .teacher-info \{ /* 
-\f1 \'be\'c9\'ae\'76\'b8\'ea\'b0\'54\'c4\'e6\'a6\'ec\'bc\'cb\'a6\'a1
-\f0  */\
-            background-color: #ede9fe; /* 
-\f1 \'b2\'48\'b5\'b5\'a6\'e2\'ad\'49\'b4\'ba
-\f0  */\
-            color: #5b21b6; /* 
-\f1 \'b2\'60\'b5\'b5\'a6\'e2\'a4\'e5\'a6\'72
-\f0  */\
-            padding: 8px 12px;\
-            border-radius: 6px;\
-            text-align: center;\
-            font-weight: 500;\
-            margin-bottom: 1rem; /* 
-\f1 \'bb\'50\'a4\'55\'a4\'e8\'a4\'b8\'af\'c0\'aa\'ba\'b6\'a1\'b6\'5a
-\f0  */\
-            font-size: 1.1rem;\
-        \}\
-    </style>\
-</head>\
-<body class="p-4 md:p-8">\
-    <div class="max-w-full mx-auto bg-white rounded-lg shadow-lg p-4 md:p-6">\
-        <h1 class="text-2xl md:text-3xl font-bold text-center text-indigo-800 mb-2">Gloria
-\f1 \'a6\'d1\'ae\'76\'af\'5a\'af\'c5\'aa\'ba\'a5\'58\'af\'ca\'b6\'d4\'ac\'f6\'bf\'fd
-\f0 </h1>\
-        <div class="teacher-info">\
-            
-\f1 \'be\'c9\'ae\'76\'a1\'47
-\f0 Gloria
-\f1 \'a7\'64\'a8\'71\'c4\'f5\'a6\'d1\'ae\'76
-\f0 , Google
-\f1 \'bb\'7b\'c3\'d2\'c1\'bf\'ae\'76
-\f0 , 
-\f1 \'ad\'5e\'a4\'e5\'ad\'dd\'a5\'78\'bb\'79\'b1\'d0\'ae\'76
-\f0 \
-        </div>\
-        <div class="text-center text-xl font-semibold text-gray-700 mb-6">(2025
-\f1 \'a6\'7e
-\f0 )</div>\
-\
-        <div class="controls mb-6 flex flex-wrap gap-4 items-center justify-between">\
-            <div class="flex flex-wrap gap-4 items-center">\
-                <div>\
-                    <label for="month-select" class="block text-lg font-medium text-gray-700 mb-2">
-\f1 \'a4\'eb\'a5\'f7
-\f0 </label>\
-                    <select id="month-select" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">\
-                        <option value="1">1
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="2">2
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="3">3
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="4">4
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="5">5
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="6">6
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="7">7
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="8">8
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="9">9
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="10">10
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="11">11
-\f1 \'a4\'eb
-\f0 </option>\
-                        <option value="12">12
-\f1 \'a4\'eb
-\f0 </option>\
-                    </select>\
-                </div>\
-                <button id="update-table" class="bg-indigo-600 text-white touch-button hover:bg-indigo-700 transition mt-5">
-\f1 \'a7\'f3\'b7\'73\'aa\'ed\'ae\'e6
-\f0 </button>\
-            </div>\
-            <div>\
-                <button id="add-student" class="bg-green-600 text-white touch-button hover:bg-green-700 transition">
-\f1 \'b7\'73\'bc\'57\'be\'c7\'a5\'cd
-\f0 </button>\
-                <button id="save-data" class="bg-blue-600 text-white touch-button hover:bg-blue-700 transition ml-2">
-\f1 \'c0\'78\'a6\'73\'b8\'ea\'ae\'c6
-\f0 </button>\
-            </div>\
-        </div>\
-\
-        <div class="legend mb-4">\
-            <div class="legend-item">\
-                <div class="legend-color bg-red-200"></div>\
-                <span>
-\f1 \'bf\'f0\'a8\'ec
-\f0  (X)</span>\
-            </div>\
-            <div class="legend-item">\
-                <div class="triangle"></div>\
-                <span>
-\f1 \'bd\'d0\'b0\'b2
-\f0 </span>\
-            </div>\
-            <div class="legend-item">\
-                <div class="legend-color bg-yellow-200"></div>\
-                <span>
-\f1 \'c3\'6d\'bd\'d2
-\f0  (
-\f1 \'c3\'6d
-\f0 )</span>\
-            </div>\
-        </div>\
-\
-        <div class="table-container">\
-            <table id="attendance-table" class="w-full">\
-                <thead>\
-                    <tr class="header-row">\
-                        <th class="student-number-header">
-\f1 \'ae\'79\'b8\'b9
-\f0 </th>\
-                        <th class="empty-cell"></th>\
-                        <th class="total-column">
-\f1 \'c1\'60\'ad\'70
-\f0 </th>\
-                    </tr>\
-                </thead>\
-                <tbody id="table-body">\
-                    </tbody>\
-            </table>\
-        </div>\
-    </div>\
-\
-    <div id="note-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">\
-        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">\
-            <h3 class="text-xl font-semibold mb-4">
-\f1 \'bc\'d0\'b0\'4f\'aa\'ac\'ba\'41
-\f0 </h3>\
-            <div class="mb-4">\
-                <div class="grid grid-cols-3 gap-2 mb-4"> \{/* 
-\f1 \'a7\'ef\'ac\'b0\'a4\'54\'c4\'e6
-\f0  */\}\
-                    <button id="mark-tardy" class="py-3 bg-red-100 border border-red-300 text-red-800 rounded-md hover:bg-red-200 transition text-lg">
-\f1 \'bf\'f0\'a8\'ec
-\f0 </button>\
-                    <button id="mark-leave" class="py-3 bg-blue-100 border border-blue-300 text-blue-800 rounded-md hover:bg-blue-200 transition text-lg">
-\f1 \'bd\'d0\'b0\'b2
-\f0 </button>\
-                    <button id="mark-absent" class="py-3 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-md hover:bg-yellow-200 transition text-lg">
-\f1 \'c3\'6d\'bd\'d2
-\f0 </button>\
-                </div>\
-                <label for="note-text" class="block text-lg font-medium text-gray-700 mb-2">
-\f1 \'b3\'c6\'b5\'f9\'a4\'ba\'ae\'65
-\f0 </label>\
-                <textarea id="note-text" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>\
-            </div>\
-            <div class="flex flex-wrap justify-end gap-3">\
-                <button id="cancel-note" class="modal-button px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition">
-\f1 \'a8\'fa\'ae\'f8
-\f0 </button>\
-                <button id="save-note" class="modal-button px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">
-\f1 \'c0\'78\'a6\'73
-\f0 </button>\
-                <button id="remove-mark" class="modal-button px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition">
-\f1 \'b2\'be\'b0\'a3\'bc\'d0\'b0\'4f
-\f0 </button>\
-            </div>\
-        </div>\
-    </div>\
-\
-    <div id="student-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">\
-        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">\
-            <h3 class="text-xl font-semibold mb-4">
-\f1 \'be\'c7\'a5\'cd\'b8\'ea\'b0\'54
-\f0 </h3>\
-            <div class="mb-4">\
-                <div class="mb-4">\
-                    <label for="student-number-input" class="block text-lg font-medium text-gray-700 mb-2">
-\f1 \'ae\'79\'b8\'b9
-\f0 </label> \{/* ID 
-\f1 \'ad\'d7\'a7\'ef\'c1\'d7\'a7\'4b\'bd\'c4\'ac\'f0
-\f0  */\}\
-                    <input type="number" id="student-number-input" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">\
-                </div>\
-                <div class="mb-4">\
-                    <label for="student-name" class="block text-lg font-medium text-gray-700 mb-2">
-\f1 \'a9\'6d\'a6\'57
-\f0 </label>\
-                    <input type="text" id="student-name" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">\
-                </div>\
-            </div>\
-            <div class="flex flex-wrap justify-end gap-3">\
-                <button id="cancel-student" class="modal-button px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition">
-\f1 \'a8\'fa\'ae\'f8
-\f0 </button>\
-                <button id="save-student" class="modal-button px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">
-\f1 \'c0\'78\'a6\'73
-\f0 </button>\
-            </div>\
-        </div>\
-    </div>\
-\
-<script>\
-// 
-\f1 \'aa\'ec\'a9\'6c\'a4\'c6\'b8\'ea\'ae\'c6
-\f0 \
-let students = JSON.parse(localStorage.getItem('attendanceStudentsGloria')) || [ // 
-\f1 \'ad\'d7\'a7\'ef\'c0\'78\'a6\'73\'c1\'e4\'a6\'57\'a5\'48\'c1\'d7\'a7\'4b\'bd\'c4\'ac\'f0
-\f0 \
-    \{ id: 1, number: 1, name: '
-\f1 \'a4\'fd\'a4\'70\'a9\'fa
-\f0 ' \},\
-    \{ id: 2, number: 2, name: '
-\f1 \'a7\'f5\'a4\'70\'b5\'d8
-\f0 ' \},\
-    \{ id: 3, number: 3, name: '
-\f1 \'b1\'69\'a4\'70\'ac\'fc
-\f0 ' \},\
-    \{ id: 4, number: 4, name: '
-\f1 \'b3\'af\'a4\'6a\'b0\'b6
-\f0 ' \},\
-    \{ id: 5, number: 5, name: '
-\f1 \'aa\'4c\'a4\'70\'ac\'c2
-\f0 ' \}\
-];\
-\
-let attendance = JSON.parse(localStorage.getItem('attendanceDataGloria')) || \{\}; // 
-\f1 \'ad\'d7\'a7\'ef\'c0\'78\'a6\'73\'c1\'e4\'a6\'57
-\f0 \
-let currentMonth = document.getElementById('month-select').value;\
-\
-// 
-\f1 \'b7\'ed\'ab\'65\'bf\'ef\'a4\'a4\'aa\'ba\'b3\'e6\'a4\'b8\'ae\'e6\'a9\'4d\'be\'c7\'a5\'cd
-\f0 \
-let currentCell = null;\
-let currentMarkType = null; // 'tardy', 'leave', 'absent'\
-let currentStudentId = null;\
-\
-// 2025
-\f1 \'a6\'7e\'aa\'ba\'a4\'75\'a7\'40\'a4\'e9\'a4\'e9\'b4\'c1\'a1\'5d\'a4\'a3\'a7\'74\'b6\'67\'a5\'bd\'a9\'4d\'b0\'b2\'a4\'e9\'a1\'5e
-\f0  - 
-\f1 \'ab\'4f\'ab\'f9\'a4\'a3\'c5\'dc
-\f0 \
-const workdays2025 = \{\
-    1: [\{day: 1, date: "1/1"\}, \{day: 2, date: "1/2"\}, \{day: 3, date: "1/3"\}, \{day: 6, date: "1/6"\}, \{day: 7, date: "1/7"\}, \{day: 8, date: "1/8"\}, \{day: 9, date: "1/9"\}, \{day: 10, date: "1/10"\}, \{day: 13, date: "1/13"\}, \{day: 14, date: "1/14"\}, \{day: 15, date: "1/15"\}, \{day: 16, date: "1/16"\}, \{day: 17, date: "1/17"\}, \{day: 20, date: "1/20"\}, \{day: 21, date: "1/21"\}, \{day: 22, date: "1/22"\}, \{day: 23, date: "1/23"\}, \{day: 24, date: "1/24"\}, \{day: 27, date: "1/27"\}, \{day: 28, date: "1/28"\}, \{day: 29, date: "1/29"\}, \{day: 30, date: "1/30"\}, \{day: 31, date: "1/31"\}],\
-    2: [\{day: 3, date: "2/3"\}, \{day: 4, date: "2/4"\}, \{day: 5, date: "2/5"\}, \{day: 6, date: "2/6"\}, \{day: 7, date: "2/7"\}, \{day: 10, date: "2/10"\}, \{day: 11, date: "2/11"\}, \{day: 12, date: "2/12"\}, \{day: 13, date: "2/13"\}, \{day: 14, date: "2/14"\}, \{day: 17, date: "2/17"\}, \{day: 18, date: "2/18"\}, \{day: 19, date: "2/19"\}, \{day: 20, date: "2/20"\}, \{day: 21, date: "2/21"\}, \{day: 24, date: "2/24"\}, \{day: 25, date: "2/25"\}, \{day: 26, date: "2/26"\}, \{day: 27, date: "2/27"\}, \{day: 28, date: "2/28"\}],\
-    3: [\{day: 3, date: "3/3"\}, \{day: 4, date: "3/4"\}, \{day: 5, date: "3/5"\}, \{day: 6, date: "3/6"\}, \{day: 7, date: "3/7"\}, \{day: 10, date: "3/10"\}, \{day: 11, date: "3/11"\}, \{day: 12, date: "3/12"\}, \{day: 13, date: "3/13"\}, \{day: 14, date: "3/14"\}, \{day: 17, date: "3/17"\}, \{day: 18, date: "3/18"\}, \{day: 19, date: "3/19"\}, \{day: 20, date: "3/20"\}, \{day: 21, date: "3/21"\}, \{day: 24, date: "3/24"\}, \{day: 25, date: "3/25"\}, \{day: 26, date: "3/26"\}, \{day: 27, date: "3/27"\}, \{day: 28, date: "3/28"\}, \{day: 31, date: "3/31"\}],\
-    4: [\{day: 1, date: "4/1"\}, \{day: 2, date: "4/2"\}, \{day: 3, date: "4/3"\}, \{day: 4, date: "4/4"\}, \{day: 7, date: "4/7"\}, \{day: 8, date: "4/8"\}, \{day: 9, date: "4/9"\}, \{day: 10, date: "4/10"\}, \{day: 11, date: "4/11"\}, \{day: 14, date: "4/14"\}, \{day: 15, date: "4/15"\}, \{day: 16, date: "4/16"\}, \{day: 17, date: "4/17"\}, \{day: 18, date: "4/18"\}, \{day: 21, date: "4/21"\}, \{day: 22, date: "4/22"\}, \{day: 23, date: "4/23"\}, \{day: 24, date: "4/24"\}, \{day: 25, date: "4/25"\}, \{day: 28, date: "4/28"\}, \{day: 29, date: "4/29"\}, \{day: 30, date: "4/30"\}],\
-    5: [\{day: 1, date: "5/1"\}, \{day: 2, date: "5/2"\}, \{day: 5, date: "5/5"\}, \{day: 6, date: "5/6"\}, \{day: 7, date: "5/7"\}, \{day: 8, date: "5/8"\}, \{day: 9, date: "5/9"\}, \{day: 12, date: "5/12"\}, \{day: 13, date: "5/13"\}, \{day: 14, date: "5/14"\}, \{day: 15, date: "5/15"\}, \{day: 16, date: "5/16"\}, \{day: 19, date: "5/19"\}, \{day: 20, date: "5/20"\}, \{day: 21, date: "5/21"\}, \{day: 22, date: "5/22"\}, \{day: 23, date: "5/23"\}, \{day: 26, date: "5/26"\}, \{day: 27, date: "5/27"\}, \{day: 28, date: "5/28"\}, \{day: 29, date: "5/29"\}, \{day: 30, date: "5/30"\}],\
-    6: [\{day: 2, date: "6/2"\}, \{day: 3, date: "6/3"\}, \{day: 4, date: "6/4"\}, \{day: 5, date: "6/5"\}, \{day: 6, date: "6/6"\}, \{day: 9, date: "6/9"\}, \{day: 10, date: "6/10"\}, \{day: 11, date: "6/11"\}, \{day: 12, date: "6/12"\}, \{day: 13, date: "6/13"\}, \{day: 16, date: "6/16"\}, \{day: 17, date: "6/17"\}, \{day: 18, date: "6/18"\}, \{day: 19, date: "6/19"\}, \{day: 20, date: "6/20"\}, \{day: 23, date: "6/23"\}, \{day: 24, date: "6/24"\}, \{day: 25, date: "6/25"\}, \{day: 26, date: "6/26"\}, \{day: 27, date: "6/27"\}, \{day: 30, date: "6/30"\}],\
-    7: [\{day: 1, date: "7/1"\}, \{day: 2, date: "7/2"\}, \{day: 3, date: "7/3"\}, \{day: 4, date: "7/4"\}, \{day: 7, date: "7/7"\}, \{day: 8, date: "7/8"\}, \{day: 9, date: "7/9"\}, \{day: 10, date: "7/10"\}, \{day: 11, date: "7/11"\}, \{day: 14, date: "7/14"\}, \{day: 15, date: "7/15"\}, \{day: 16, date: "7/16"\}, \{day: 17, date: "7/17"\}, \{day: 18, date: "7/18"\}, \{day: 21, date: "7/21"\}, \{day: 22, date: "7/22"\}, \{day: 23, date: "7/23"\}, \{day: 24, date: "7/24"\}, \{day: 25, date: "7/25"\}, \{day: 28, date: "7/28"\}, \{day: 29, date: "7/29"\}, \{day: 30, date: "7/30"\}, \{day: 31, date: "7/31"\}],\
-    8: [\{day: 1, date: "8/1"\}, \{day: 4, date: "8/4"\}, \{day: 5, date: "8/5"\}, \{day: 6, date: "8/6"\}, \{day: 7, date: "8/7"\}, \{day: 8, date: "8/8"\}, \{day: 11, date: "8/11"\}, \{day: 12, date: "8/12"\}, \{day: 13, date: "8/13"\}, \{day: 14, date: "8/14"\}, \{day: 15, date: "8/15"\}, \{day: 18, date: "8/18"\}, \{day: 19, date: "8/19"\}, \{day: 20, date: "8/20"\}, \{day: 21, date: "8/21"\}, \{day: 22, date: "8/22"\}, \{day: 25, date: "8/25"\}, \{day: 26, date: "8/26"\}, \{day: 27, date: "8/27"\}, \{day: 28, date: "8/28"\}, \{day: 29, date: "8/29"\}],\
-    9: [\{day: 1, date: "9/1"\}, \{day: 2, date: "9/2"\}, \{day: 3, date: "9/3"\}, \{day: 4, date: "9/4"\}, \{day: 5, date: "9/5"\}, \{day: 8, date: "9/8"\}, \{day: 9, date: "9/9"\}, \{day: 10, date: "9/10"\}, \{day: 11, date: "9/11"\}, \{day: 12, date: "9/12"\}, \{day: 15, date: "9/15"\}, \{day: 16, date: "9/16"\}, \{day: 17, date: "9/17"\}, \{day: 18, date: "9/18"\}, \{day: 19, date: "9/19"\}, \{day: 22, date: "9/22"\}, \{day: 23, date: "9/23"\}, \{day: 24, date: "9/24"\}, \{day: 25, date: "9/25"\}, \{day: 26, date: "9/26"\}, \{day: 29, date: "9/29"\}, \{day: 30, date: "9/30"\}],\
-    10: [\{day: 1, date: "10/1"\}, \{day: 2, date: "10/2"\}, \{day: 3, date: "10/3"\}, \{day: 6, date: "10/6"\}, \{day: 7, date: "10/7"\}, \{day: 8, date: "10/8"\}, \{day: 9, date: "10/9"\}, \{day: 10, date: "10/10"\}, \{day: 13, date: "10/13"\}, \{day: 14, date: "10/14"\}, \{day: 15, date: "10/15"\}, \{day: 16, date: "10/16"\}, \{day: 17, date: "10/17"\}, \{day: 20, date: "10/20"\}, \{day: 21, date: "10/21"\}, \{day: 22, date: "10/22"\}, \{day: 23, date: "10/23"\}, \{day: 24, date: "10/24"\}, \{day: 27, date: "10/27"\}, \{day: 28, date: "10/28"\}, \{day: 29, date: "10/29"\}, \{day: 30, date: "10/30"\}, \{day: 31, date: "10/31"\}],\
-    11: [\{day: 3, date: "11/3"\}, \{day: 4, date: "11/4"\}, \{day: 5, date: "11/5"\}, \{day: 6, date: "11/6"\}, \{day: 7, date: "11/7"\}, \{day: 10, date: "11/10"\}, \{day: 11, date: "11/11"\}, \{day: 12, date: "11/12"\}, \{day: 13, date: "11/13"\}, \{day: 14, date: "11/14"\}, \{day: 17, date: "11/17"\}, \{day: 18, date: "11/18"\}, \{day: 19, date: "11/19"\}, \{day: 20, date: "11/20"\}, \{day: 21, date: "11/21"\}, \{day: 24, date: "11/24"\}, \{day: 25, date: "11/25"\}, \{day: 26, date: "11/26"\}, \{day: 27, date: "11/27"\}, \{day: 28, date: "11/28"\}],\
-    12: [\{day: 1, date: "12/1"\}, \{day: 2, date: "12/2"\}, \{day: 3, date: "12/3"\}, \{day: 4, date: "12/4"\}, \{day: 5, date: "12/5"\}, \{day: 8, date: "12/8"\}, \{day: 9, date: "12/9"\}, \{day: 10, date: "12/10"\}, \{day: 11, date: "12/11"\}, \{day: 12, date: "12/12"\}, \{day: 15, date: "12/15"\}, \{day: 16, date: "12/16"\}, \{day: 17, date: "12/17"\}, \{day: 18, date: "12/18"\}, \{day: 19, date: "12/19"\}, \{day: 22, date: "12/22"\}, \{day: 23, date: "12/23"\}, \{day: 24, date: "12/24"\}, \{day: 25, date: "12/25"\}, \{day: 26, date: "12/26"\}, \{day: 29, date: "12/29"\}, \{day: 30, date: "12/30"\}, \{day: 31, date: "12/31"\}]\
-\};\
-\
-// 
-\f1 \'aa\'ec\'a9\'6c\'a4\'c6\'aa\'ed\'ae\'e6
-\f0 \
-function initTable() \{\
-    const headerRow = document.querySelector('.header-row');\
-    const tableBody = document.getElementById('table-body');\
-\
-    // 
-\f1 \'b2\'4d\'b0\'a3\'b2\'7b\'a6\'b3\'aa\'ba\'a4\'e9\'b4\'c1\'c4\'e6\'a6\'ec\'a1\'41\'ab\'4f\'af\'64\'ae\'79\'b8\'b9\'a1\'42\'aa\'c5\'a5\'d5\'a9\'4d\'c1\'60\'ad\'70\'c4\'e6
-\f0 \
-    while (headerRow.children.length > 3) \{ // 
-\f1 \'ad\'ec\'ac\'b0
-\f0 2
-\f1 \'a1\'41\'b2\'7b\'a6\'62\'ac\'4f
-\f0 3 (
-\f1 \'ae\'79\'b8\'b9
-\f0 , 
-\f1 \'aa\'c5\'a5\'d5
-\f0 , 
-\f1 \'c1\'60\'ad\'70
-\f0 )\
-        headerRow.removeChild(headerRow.children[1]); // 
-\f1 \'b2\'be\'b0\'a3\'ae\'79\'b8\'b9\'ab\'e1\'aa\'ba\'b2\'c4\'a4\'47\'ad\'d3\'a4\'b8\'af\'c0
-\f0  (
-\f1 \'c2\'c2\'aa\'ba\'a4\'e9\'b4\'c1
-\f0 )\
-    \}\
-\
-    // 
-\f1 \'c0\'f2\'a8\'fa\'b7\'ed\'ab\'65\'a4\'eb\'a5\'f7\'aa\'ba\'a4\'75\'a7\'40\'a4\'e9
-\f0 \
-    const monthWorkdays = workdays2025[currentMonth] || [];\
-\
-    // 
-\f1 \'b2\'4b\'a5\'5b\'a4\'e9\'b4\'c1\'c4\'e6\'a6\'ec
-\f0 \
-    for (let i = 0; i < monthWorkdays.length; i++) \{\
-        const th = document.createElement('th');\
-        th.textContent = monthWorkdays[i].date; // 
-\f1 \'aa\'bd\'b1\'b5\'c5\'e3\'a5\'dc
-\f0  m/d\
-        th.className = 'date-cell header-date';\
-        headerRow.insertBefore(th, headerRow.lastElementChild); // 
-\f1 \'b4\'a1\'a4\'4a\'a8\'ec\'c1\'60\'ad\'70\'c4\'e6\'a6\'ec\'a4\'a7\'ab\'65
-\f0 \
-    \}\
-\
-    // 
-\f1 \'b2\'4d\'b0\'a3\'b2\'7b\'a6\'b3\'aa\'ba\'be\'c7\'a5\'cd\'a6\'e6
-\f0 \
-    tableBody.innerHTML = '';\
-\
-    // 
-\f1 \'ab\'f6\'ae\'79\'b8\'b9\'b1\'c6\'a7\'c7\'be\'c7\'a5\'cd
-\f0 \
-    students.sort((a, b) => a.number - b.number);\
-\
-    // 
-\f1 \'b2\'4b\'a5\'5b\'be\'c7\'a5\'cd\'a6\'e6
-\f0 \
-    students.forEach(student => \{\
-        const tr = document.createElement('tr');\
-\
-        // 
-\f1 \'be\'c7\'a5\'cd\'ae\'79\'b8\'b9\'b3\'e6\'a4\'b8\'ae\'e6
-\f0 \
-        const numberTd = document.createElement('td');\
-        numberTd.textContent = student.number;\
-        numberTd.className = 'student-number';\
-        numberTd.dataset.studentId = student.id;\
-        numberTd.title = student.name; // 
-\f1 \'c5\'e3\'a5\'dc\'be\'c7\'a5\'cd\'a9\'6d\'a6\'57\'ac\'b0\'b4\'a3\'a5\'dc
-\f0 \
-        numberTd.addEventListener('click', function() \{\
-            editStudent(student.id);\
-        \});\
-        tr.appendChild(numberTd);\
-\
-        // 
-\f1 \'b2\'4b\'a5\'5b\'aa\'c5\'a5\'d5\'b3\'e6\'a4\'b8\'ae\'e6
-\f0 \
-        const emptyTd = document.createElement('td');\
-        emptyTd.className = 'empty-cell';\
-        tr.appendChild(emptyTd);\
-\
-\
-        // 
-\f1 \'a4\'e9\'b4\'c1\'b3\'e6\'a4\'b8\'ae\'e6
-\f0 \
-        for (let i = 0; i < monthWorkdays.length; i++) \{\
-            const td = document.createElement('td');\
-            td.className = 'date-cell';\
-            td.dataset.date = monthWorkdays[i].day;\
-            td.dataset.studentId = student.id;\
-\
-            // 
-\f1 \'c0\'cb\'ac\'64\'ac\'4f\'a7\'5f\'a6\'b3\'b0\'4f\'bf\'fd
-\f0 \
-            const key = `$\{currentMonth\}-$\{monthWorkdays[i].day\}-$\{student.id\}`;\
-            if (attendance[key]) \{\
-                if (attendance[key].type === 'tardy') \{\
-                    td.textContent = 'X';\
-                    td.classList.add('tardy');\
-                \} else if (attendance[key].type === 'leave') \{\
-                    td.innerHTML = '<div class="triangle mx-auto"></div>';\
-                    td.classList.add('leave');\
-                \} else if (attendance[key].type === 'absent') \{ // 
-\f1 \'b7\'73\'bc\'57\'c3\'6d\'bd\'d2\'b3\'42\'b2\'7a
-\f0 \
-                    td.textContent = '
-\f1 \'c3\'6d
-\f0 ';\
-                    td.classList.add('absent');\
-                \}\
-\
-                // 
-\f1 \'a6\'70\'aa\'47\'a6\'b3\'b3\'c6\'b5\'f9\'a1\'41\'b2\'4b\'a5\'5b\'b4\'a3\'a5\'dc
-\f0 \
-                if (attendance[key].note) \{\
-                    const tooltip = document.createElement('div');\
-                    tooltip.className = 'tooltip';\
-                    tooltip.textContent = attendance[key].note;\
-                    td.appendChild(tooltip);\
-                \}\
-            \}\
-\
-            // 
-\f1 \'b2\'4b\'a5\'5b\'c2\'49\'c0\'bb\'a8\'c6\'a5\'f3
-\f0 \
-            td.addEventListener('click', function() \{\
-                openNoteModal(this);\
-            \});\
-            tr.appendChild(td);\
-        \}\
-\
-        // 
-\f1 \'c1\'60\'ad\'70\'b3\'e6\'a4\'b8\'ae\'e6
-\f0 \
-        const totalTd = document.createElement('td');\
-        totalTd.className = 'total-column';\
-        totalTd.textContent = calculateStudentTotal(student.id);\
-        tr.appendChild(totalTd);\
-\
-        tableBody.appendChild(tr);\
-    \});\
-\}\
-\
-// 
-\f1 \'bd\'73\'bf\'e8\'be\'c7\'a5\'cd\'b8\'ea\'b0\'54
-\f0 \
-function editStudent(studentId) \{\
-    currentStudentId = studentId;\
-    const student = students.find(s => s.id === studentId);\
-    if (!student) return;\
-\
-    document.getElementById('student-number-input').value = student.number; // 
-\f1 \'a8\'cf\'a5\'ce\'b7\'73\'aa\'ba
-\f0 ID\
-    document.getElementById('student-name').value = student.name;\
-\
-    document.getElementById('student-modal').classList.remove('hidden');\
-\}\
-\
-// 
-\f1 \'c0\'78\'a6\'73\'be\'c7\'a5\'cd\'b8\'ea\'b0\'54
-\f0 \
-document.getElementById('save-student').addEventListener('click', function() \{\
-    if (!currentStudentId) return;\
-\
-    const student = students.find(s => s.id === currentStudentId);\
-    if (!student) return;\
-\
-    const newNumber = parseInt(document.getElementById('student-number-input').value); // 
-\f1 \'a8\'cf\'a5\'ce\'b7\'73\'aa\'ba
-\f0 ID\
-    const newName = document.getElementById('student-name').value.trim();\
-\
-    if (isNaN(newNumber) || newNumber <= 0) \{\
-        alert('
-\f1 \'bd\'d0\'bf\'e9\'a4\'4a\'a6\'b3\'ae\'c4\'aa\'ba\'ae\'79\'b8\'b9\'a1\'49
-\f0 ');\
-        return;\
-    \}\
-\
-    if (!newName) \{\
-        alert('
-\f1 \'bd\'d0\'bf\'e9\'a4\'4a\'be\'c7\'a5\'cd\'a9\'6d\'a6\'57\'a1\'49
-\f0 ');\
-        return;\
-    \}\
-\
-    // 
-\f1 \'c0\'cb\'ac\'64\'ae\'79\'b8\'b9\'ac\'4f\'a7\'5f\'ad\'ab\'bd\'c6
-\f0 \
-    const duplicateNumber = students.find(s => s.id !== currentStudentId && s.number === newNumber);\
-    if (duplicateNumber) \{\
-        alert('
-\f1 \'ae\'79\'b8\'b9\'a4\'77\'a6\'73\'a6\'62\'a1\'41\'bd\'d0\'a8\'cf\'a5\'ce\'a8\'e4\'a5\'4c\'ae\'79\'b8\'b9\'a1\'49
-\f0 ');\
-        return;\
-    \}\
-\
-    student.number = newNumber;\
-    student.name = newName;\
-\
-    document.getElementById('student-modal').classList.add('hidden');\
-    currentStudentId = null;\
-    initTable(); // 
-\f1 \'ad\'ab\'b7\'73\'b4\'e8\'ac\'56\'aa\'ed\'ae\'e6
-\f0 \
-\});\
-\
-// 
-\f1 \'a8\'fa\'ae\'f8\'bd\'73\'bf\'e8\'be\'c7\'a5\'cd
-\f0 \
-document.getElementById('cancel-student').addEventListener('click', function() \{\
-    document.getElementById('student-modal').classList.add('hidden');\
-    currentStudentId = null;\
-\});\
-\
-// 
-\f1 \'ad\'70\'ba\'e2\'be\'c7\'a5\'cd\'af\'ca\'ae\'75\'c1\'60\'bc\'c6
-\f0  (
-\f1 \'bf\'f0\'a8\'ec
-\f0  + 
-\f1 \'c3\'6d\'bd\'d2
-\f0 )\
-function calculateStudentTotal(studentId) \{\
-    let total = 0;\
-    const monthWorkdays = workdays2025[currentMonth] || [];\
-\
-    for (let i = 0; i < monthWorkdays.length; i++) \{\
-        const key = `$\{currentMonth\}-$\{monthWorkdays[i].day\}-$\{studentId\}`;\
-        if (attendance[key] && (attendance[key].type === 'tardy' || attendance[key].type === 'absent')) \{ // 
-\f1 \'bf\'f0\'a8\'ec\'a9\'ce\'c3\'6d\'bd\'d2\'b3\'a3\'ad\'70\'a4\'4a\'c1\'60\'bc\'c6
-\f0 \
-            total++;\
-        \}\
-    \}\
-    return total;\
-\}\
-\
-// 
-\f1 \'a7\'f3\'b7\'73\'a9\'d2\'a6\'b3\'c1\'60\'ad\'70
-\f0 \
-function updateAllTotals() \{\
-    students.forEach(student => \{\
-        const totalCell = document.querySelector(`tr:has(td[data-student-id="$\{student.id\}"]:first-child) td.total-column`);\
-        if (totalCell) \{\
-            totalCell.textContent = calculateStudentTotal(student.id);\
-        \}\
-    \});\
-\}\
-\
-// 
-\f1 \'a5\'b4\'b6\'7d\'bc\'d0\'b0\'4f\'b9\'ef\'b8\'dc\'ae\'d8
-\f0 \
-function openNoteModal(cell) \{\
-    currentCell = cell;\
-    const studentId = parseInt(cell.dataset.studentId);\
-    const date = parseInt(cell.dataset.date);\
-    const key = `$\{currentMonth\}-$\{date\}-$\{studentId\}`;\
-\
-    const noteModal = document.getElementById('note-modal');\
-    const noteText = document.getElementById('note-text');\
-    const removeMarkBtn = document.getElementById('remove-mark');\
-\
-    // 
-\f1 \'ad\'ab\'b8\'6d\'bc\'d0\'b0\'4f\'c3\'fe\'ab\'ac\'ab\'f6\'b6\'73\'bc\'cb\'a6\'a1
-\f0 \
-    currentMarkType = null;\
-    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');\
-    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');\
-    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500'); // 
-\f1 \'b7\'73\'bc\'57\'c3\'6d\'bd\'d2\'ab\'f6\'b6\'73\'bc\'cb\'a6\'a1\'ad\'ab\'b8\'6d
-\f0 \
-\
-    // 
-\f1 \'a6\'70\'aa\'47\'a4\'77\'a6\'b3\'b0\'4f\'bf\'fd\'a1\'41\'c5\'e3\'a5\'dc\'b3\'c6\'b5\'f9\'a9\'4d\'bc\'d0\'b0\'4f\'c3\'fe\'ab\'ac
-\f0 \
-    if (attendance[key]) \{\
-        noteText.value = attendance[key].note || '';\
-        currentMarkType = attendance[key].type;\
-\
-        if (currentMarkType === 'tardy') \{\
-            document.getElementById('mark-tardy').classList.add('ring-2', 'ring-red-500');\
-        \} else if (currentMarkType === 'leave') \{\
-            document.getElementById('mark-leave').classList.add('ring-2', 'ring-blue-500');\
-        \} else if (currentMarkType === 'absent') \{ // 
-\f1 \'b7\'73\'bc\'57\'c3\'6d\'bd\'d2\'ab\'f6\'b6\'73\'bf\'ef\'a4\'a4\'bc\'cb\'a6\'a1
-\f0 \
-            document.getElementById('mark-absent').classList.add('ring-2', 'ring-yellow-500');\
-        \}\
-        removeMarkBtn.style.display = 'block';\
-    \} else \{\
-        noteText.value = '';\
-        removeMarkBtn.style.display = 'none';\
-    \}\
-    noteModal.classList.remove('hidden');\
-\}\
-\
-// 
-\f1 \'bc\'d0\'b0\'4f\'ab\'f6\'b6\'73\'a8\'c6\'a5\'f3\'ba\'ca\'c5\'a5
-\f0 \
-document.getElementById('mark-tardy').addEventListener('click', function() \{\
-    currentMarkType = 'tardy';\
-    this.classList.add('ring-2', 'ring-red-500');\
-    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');\
-    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');\
-\});\
-\
-document.getElementById('mark-leave').addEventListener('click', function() \{\
-    currentMarkType = 'leave';\
-    this.classList.add('ring-2', 'ring-blue-500');\
-    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');\
-    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');\
-\});\
-\
-document.getElementById('mark-absent').addEventListener('click', function() \{ // 
-\f1 \'b7\'73\'bc\'57\'c3\'6d\'bd\'d2\'ab\'f6\'b6\'73\'a8\'c6\'a5\'f3
-\f0 \
-    currentMarkType = 'absent';\
-    this.classList.add('ring-2', 'ring-yellow-500');\
-    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');\
-    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');\
-\});\
-\
-\
-// 
-\f1 \'c0\'78\'a6\'73\'b3\'c6\'b5\'f9\'a9\'4d\'bc\'d0\'b0\'4f
-\f0 \
-document.getElementById('save-note').addEventListener('click', function() \{\
-    if (!currentCell || !currentMarkType) return;\
-\
-    const studentId = parseInt(currentCell.dataset.studentId);\
-    const date = parseInt(currentCell.dataset.date);\
-    const key = `$\{currentMonth\}-$\{date\}-$\{studentId\}`;\
-    const noteTextValue = document.getElementById('note-text').value.trim();\
-\
-    // 
-\f1 \'c0\'78\'a6\'73\'b0\'4f\'bf\'fd
-\f0 \
-    attendance[key] = \{\
-        type: currentMarkType,\
-        note: noteTextValue\
-    \};\
-\
-    // 
-\f1 \'a7\'f3\'b7\'73\'b3\'e6\'a4\'b8\'ae\'e6\'c5\'e3\'a5\'dc
-\f0 \
-    currentCell.classList.remove('tardy', 'leave', 'absent'); // 
-\f1 \'b2\'be\'b0\'a3\'a9\'d2\'a6\'b3\'ac\'db\'c3\'f6
-\f0 class\
-    currentCell.textContent = ''; // 
-\f1 \'b2\'4d\'aa\'c5\'a4\'ba\'ae\'65
-\f0 \
-    currentCell.innerHTML = ''; // 
-\f1 \'b2\'4d\'aa\'c5
-\f0 HTML
-\f1 \'a4\'ba\'ae\'65
-\f0  (
-\f1 \'a5\'48\'a8\'be\'b8\'55\'a4\'40\'a6\'b3
-\f0 triangle)\
-\
-\
-    if (currentMarkType === 'tardy') \{\
-        currentCell.textContent = 'X';\
-        currentCell.classList.add('tardy');\
-    \} else if (currentMarkType === 'leave') \{\
-        currentCell.innerHTML = '<div class="triangle mx-auto"></div>';\
-        currentCell.classList.add('leave');\
-    \} else if (currentMarkType === 'absent') \{ // 
-\f1 \'b7\'73\'bc\'57\'c3\'6d\'bd\'d2\'c5\'e3\'a5\'dc
-\f0 \
-        currentCell.textContent = '
-\f1 \'c3\'6d
-\f0 ';\
-        currentCell.classList.add('absent');\
-    \}\
-\
-    // 
-\f1 \'a6\'70\'aa\'47\'a6\'b3\'b3\'c6\'b5\'f9\'a1\'41\'b2\'4b\'a5\'5b\'b4\'a3\'a5\'dc
-\f0 \
-    const existingTooltip = currentCell.querySelector('.tooltip');\
-    if (existingTooltip) \{\
-        currentCell.removeChild(existingTooltip);\
-    \}\
-\
-    if (noteTextValue) \{\
-        const tooltip = document.createElement('div');\
-        tooltip.className = 'tooltip';\
-        tooltip.textContent = noteTextValue;\
-        currentCell.appendChild(tooltip);\
-    \}\
-\
-    updateAllTotals(); // 
-\f1 \'a7\'f3\'b7\'73\'c1\'60\'ad\'70
-\f0 \
-    // 
-\f1 \'c3\'f6\'b3\'ac\'b9\'ef\'b8\'dc\'ae\'d8\'a8\'c3\'ad\'ab\'b8\'6d\'ab\'f6\'b6\'73\'bc\'cb\'a6\'a1
-\f0 \
-    document.getElementById('note-modal').classList.add('hidden');\
-    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');\
-    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');\
-    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');\
-    currentCell = null;\
-    currentMarkType = null;\
-\});\
-\
-// 
-\f1 \'a8\'fa\'ae\'f8\'bc\'d0\'b0\'4f
-\f0 \
-document.getElementById('cancel-note').addEventListener('click', function() \{\
-    document.getElementById('note-modal').classList.add('hidden');\
-    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');\
-    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');\
-    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');\
-    currentCell = null;\
-    currentMarkType = null;\
-\});\
-\
-// 
-\f1 \'b2\'be\'b0\'a3\'bc\'d0\'b0\'4f
-\f0 \
-document.getElementById('remove-mark').addEventListener('click', function() \{\
-    if (!currentCell) return;\
-\
-    const studentId = parseInt(currentCell.dataset.studentId);\
-    const date = parseInt(currentCell.dataset.date);\
-    const key = `$\{currentMonth\}-$\{date\}-$\{studentId\}`;\
-\
-    delete attendance[key]; // 
-\f1 \'b2\'be\'b0\'a3\'b0\'4f\'bf\'fd
-\f0 \
-\
-    // 
-\f1 \'a7\'f3\'b7\'73\'b3\'e6\'a4\'b8\'ae\'e6\'c5\'e3\'a5\'dc
-\f0 \
-    currentCell.textContent = '';\
-    currentCell.innerHTML = ''; // 
-\f1 \'b2\'4d\'b0\'a3\'a5\'69\'af\'e0\'a6\'73\'a6\'62\'aa\'ba
-\f0  triangle\
-    currentCell.classList.remove('tardy', 'leave', 'absent');\
-\
-    // 
-\f1 \'b2\'be\'b0\'a3\'b4\'a3\'a5\'dc
-\f0 \
-    const tooltip = currentCell.querySelector('.tooltip');\
-    if (tooltip) \{\
-        currentCell.removeChild(tooltip);\
-    \}\
-\
-    updateAllTotals(); // 
-\f1 \'a7\'f3\'b7\'73\'c1\'60\'ad\'70
-\f0 \
-\
-    // 
-\f1 \'c3\'f6\'b3\'ac\'b9\'ef\'b8\'dc\'ae\'d8\'a8\'c3\'ad\'ab\'b8\'6d
-\f0 \
-    document.getElementById('note-modal').classList.add('hidden');\
-    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');\
-    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');\
-    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');\
-    currentCell = null;\
-    currentMarkType = null;\
-\});\
-\
-// 
-\f1 \'a7\'f3\'b7\'73\'aa\'ed\'ae\'e6\'ab\'f6\'b6\'73
-\f0 \
-document.getElementById('update-table').addEventListener('click', function() \{\
-    currentMonth = document.getElementById('month-select').value;\
-    initTable();\
-\});\
-\
-// 
-\f1 \'b7\'73\'bc\'57\'be\'c7\'a5\'cd\'ab\'f6\'b6\'73
-\f0 \
-document.getElementById('add-student').addEventListener('click', function() \{\
-    const maxNumber = students.length > 0 ? Math.max(...students.map(s => s.number)) : 0;\
-    const newNumber = maxNumber + 1;\
-    const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;\
-    students.push(\{ id: newId, number: newNumber, name: `
-\f1 \'be\'c7\'a5\'cd
-\f0 $\{newNumber\}` \});\
-    initTable();\
-\});\
-\
-// 
-\f1 \'c0\'78\'a6\'73\'b8\'ea\'ae\'c6\'ab\'f6\'b6\'73
-\f0 \
-document.getElementById('save-data').addEventListener('click', function() \{\
-    localStorage.setItem('attendanceStudentsGloria', JSON.stringify(students)); // 
-\f1 \'ad\'d7\'a7\'ef\'c0\'78\'a6\'73\'c1\'e4\'a6\'57
-\f0 \
-    localStorage.setItem('attendanceDataGloria', JSON.stringify(attendance)); // 
-\f1 \'ad\'d7\'a7\'ef\'c0\'78\'a6\'73\'c1\'e4\'a6\'57
-\f0 \
-    alert('
-\f1 \'b8\'ea\'ae\'c6\'a4\'77\'c0\'78\'a6\'73\'a1\'49
-\f0 ');\
-\});\
-\
-// 
-\f1 \'a8\'be\'a4\'ee\'c4\'b2\'b1\'b1\'bf\'c3\'b9\'f5\'a4\'57\'aa\'ba\'c2\'f9\'c0\'bb\'c1\'59\'a9\'f1
-\f0 \
-document.addEventListener('touchstart', function(event) \{\
-    if (event.touches.length > 1) \{\
-        event.preventDefault();\
-    \}\
-\}, \{ passive: false \});\
-\
-// 
-\f1 \'a8\'be\'a4\'ee\'c4\'b2\'b1\'b1\'bf\'c3\'b9\'f5\'a4\'57\'aa\'ba\'c1\'59\'a9\'f1\'a4\'e2\'b6\'d5
-\f0  - 
-\f1 \'b5\'f9\'b8\'d1\'b1\'bc\'a5\'48\'a4\'b9\'b3\'5c\'a5\'bf\'b1\'60\'aa\'ba\'ad\'b6\'ad\'b1\'c1\'59\'a9\'f1
-\f0 \
-/*\
-document.addEventListener('touchmove', function(event) \{\
-    if (event.touches.length > 1) \{\
-        event.preventDefault();\
-    \}\
-\}, \{ passive: false \});\
-*/\
-\
-// 
-\f1 \'ad\'d7\'b4\'5f
-\f0 iOS
-\f1 \'a4\'57\'aa\'ba\'c2\'49\'c0\'bb\'a9\'b5\'bf\'f0\'b0\'dd\'c3\'44
-\f0  (
-\f1 \'a6\'70\'aa\'47\'bb\'dd\'ad\'6e
-\f0 )\
-let lastTouchEnd = 0;\
-document.addEventListener('touchend', function(event) \{\
-    const now = Date.now();\
-    const DELAY = 300; // 
-\f1 \'c2\'49\'c0\'bb\'a9\'b5\'bf\'f0\'ec\'48\'ad\'c8
-\f0 \
-\
-    // 
-\f1 \'c0\'cb\'ac\'64\'ac\'4f\'a7\'5f\'ac\'b0\'a7\'d6\'b3\'74\'b3\'73\'c4\'f2\'c2\'49\'c0\'bb
-\f0  (
-\f1 \'a5\'69\'af\'e0\'be\'c9\'ad\'50\'c1\'59\'a9\'f1
-\f0 )\
-    // 
-\f1 \'a6\'70\'aa\'47
-\f0  currentCell (
-\f1 \'a5\'bf\'a6\'62\'be\'de\'a7\'40\'aa\'ba\'b3\'e6\'a4\'b8\'ae\'e6
-\f0 ) 
-\f1 \'a6\'73\'a6\'62\'a1\'41\'ab\'68\'a4\'a3\'aa\'fd\'a4\'ee\'b9\'77\'b3\'5d\'a6\'e6\'ac\'b0\'a1\'41\'a4\'b9\'b3\'5c\'bc\'75\'a5\'58
-\f0  modal\
-    if (now - lastTouchEnd <= DELAY && !currentCell) \{\
-         // event.preventDefault(); // 
-\f1 \'c2\'d4\'b7\'56\'a8\'cf\'a5\'ce\'a1\'41\'a5\'69\'af\'e0\'b7\'7c\'aa\'fd\'a4\'ee\'a5\'bf\'b1\'60\'aa\'ba\'a4\'ac\'b0\'ca
-\f0 \
-    \}\
-    lastTouchEnd = now;\
-\}, false);\
-\
-\
-// 
-\f1 \'aa\'ec\'a9\'6c\'a4\'c6\'ad\'b6\'ad\'b1
-\f0 \
-initTable();\
-</script>\
-</body>\
-</html>\
+        <div class="controls mb-6 flex flex-wrap gap-4 items-center justify-between">
+            <div class="flex flex-wrap gap-4 items-center">
+                <div>
+                    <label for="month-select" class="block text-lg font-medium text-gray-700 mb-2">月份</label>
+                    <select id="month-select" class="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="1">1月</option>
+                        <option value="2">2月</option>
+                        <option value="3">3月</option>
+                        <option value="4">4月</option>
+                        <option value="5">5月</option>
+                        <option value="6">6月</option>
+                        <option value="7">7月</option>
+                        <option value="8">8月</option>
+                        <option value="9">9月</option>
+                        <option value="10">10月</option>
+                        <option value="11">11月</option>
+                        <option value="12">12月</option>
+                    </select>
+                </div>
+                <button id="update-table" class="bg-indigo-600 text-white touch-button hover:bg-indigo-700 transition mt-5">更新表格</button>
+            </div>
+            <div>
+                <button id="add-student" class="bg-green-600 text-white touch-button hover:bg-green-700 transition">新增學生</button>
+                <button id="save-data" class="bg-blue-600 text-white touch-button hover:bg-blue-700 transition ml-2">儲存資料</button>
+            </div>
+        </div>
+
+        <div class="legend mb-4">
+            <div class="legend-item">
+                <div class="legend-color bg-red-200"></div>
+                <span>遲到 (X)</span>
+            </div>
+            <div class="legend-item">
+                <div class="triangle"></div>
+                <span>請假</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color bg-yellow-200"></div>
+                <span>曠課 (曠)</span>
+            </div>
+        </div>
+
+        <div class="table-container">
+            <table id="attendance-table" class="w-full">
+                <thead>
+                    <tr class="header-row">
+                        <th class="student-number-header">座號</th>
+                        <th class="empty-cell"></th>
+                        <th class="total-column">總計</th>
+                    </tr>
+                </thead>
+                <tbody id="table-body">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="note-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 class="text-xl font-semibold mb-4">標記狀態</h3>
+            <div class="mb-4">
+                <div class="grid grid-cols-3 gap-2 mb-4"> {/* 改為三欄 */}
+                    <button id="mark-tardy" class="py-3 bg-red-100 border border-red-300 text-red-800 rounded-md hover:bg-red-200 transition text-lg">遲到</button>
+                    <button id="mark-leave" class="py-3 bg-blue-100 border border-blue-300 text-blue-800 rounded-md hover:bg-blue-200 transition text-lg">請假</button>
+                    <button id="mark-absent" class="py-3 bg-yellow-100 border border-yellow-300 text-yellow-800 rounded-md hover:bg-yellow-200 transition text-lg">曠課</button>
+                </div>
+                <label for="note-text" class="block text-lg font-medium text-gray-700 mb-2">備註內容</label>
+                <textarea id="note-text" rows="3" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+            </div>
+            <div class="flex flex-wrap justify-end gap-3">
+                <button id="cancel-note" class="modal-button px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition">取消</button>
+                <button id="save-note" class="modal-button px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">儲存</button>
+                <button id="remove-mark" class="modal-button px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition">移除標記</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="student-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 class="text-xl font-semibold mb-4">學生資訊</h3>
+            <div class="mb-4">
+                <div class="mb-4">
+                    <label for="student-number-input" class="block text-lg font-medium text-gray-700 mb-2">座號</label> {/* ID 修改避免衝突 */}
+                    <input type="number" id="student-number-input" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+                <div class="mb-4">
+                    <label for="student-name" class="block text-lg font-medium text-gray-700 mb-2">姓名</label>
+                    <input type="text" id="student-name" class="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+            <div class="flex flex-wrap justify-end gap-3">
+                <button id="cancel-student" class="modal-button px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-100 transition">取消</button>
+                <button id="save-student" class="modal-button px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 transition">儲存</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+// 初始化資料
+let students = JSON.parse(localStorage.getItem('attendanceStudentsGloria')) || [ // 修改儲存鍵名以避免衝突
+    { id: 1, number: 1, name: '王小明' },
+    { id: 2, number: 2, name: '李小華' },
+    { id: 3, number: 3, name: '張小美' },
+    { id: 4, number: 4, name: '陳大偉' },
+    { id: 5, number: 5, name: '林小玲' }
+];
+
+let attendance = JSON.parse(localStorage.getItem('attendanceDataGloria')) || {}; // 修改儲存鍵名
+let currentMonth = document.getElementById('month-select').value;
+
+// 當前選中的單元格和學生
+let currentCell = null;
+let currentMarkType = null; // 'tardy', 'leave', 'absent'
+let currentStudentId = null;
+
+// 2025年的工作日日期（不含週末和假日） - 保持不變
+const workdays2025 = {
+    1: [{day: 1, date: "1/1"}, {day: 2, date: "1/2"}, {day: 3, date: "1/3"}, {day: 6, date: "1/6"}, {day: 7, date: "1/7"}, {day: 8, date: "1/8"}, {day: 9, date: "1/9"}, {day: 10, date: "1/10"}, {day: 13, date: "1/13"}, {day: 14, date: "1/14"}, {day: 15, date: "1/15"}, {day: 16, date: "1/16"}, {day: 17, date: "1/17"}, {day: 20, date: "1/20"}, {day: 21, date: "1/21"}, {day: 22, date: "1/22"}, {day: 23, date: "1/23"}, {day: 24, date: "1/24"}, {day: 27, date: "1/27"}, {day: 28, date: "1/28"}, {day: 29, date: "1/29"}, {day: 30, date: "1/30"}, {day: 31, date: "1/31"}],
+    2: [{day: 3, date: "2/3"}, {day: 4, date: "2/4"}, {day: 5, date: "2/5"}, {day: 6, date: "2/6"}, {day: 7, date: "2/7"}, {day: 10, date: "2/10"}, {day: 11, date: "2/11"}, {day: 12, date: "2/12"}, {day: 13, date: "2/13"}, {day: 14, date: "2/14"}, {day: 17, date: "2/17"}, {day: 18, date: "2/18"}, {day: 19, date: "2/19"}, {day: 20, date: "2/20"}, {day: 21, date: "2/21"}, {day: 24, date: "2/24"}, {day: 25, date: "2/25"}, {day: 26, date: "2/26"}, {day: 27, date: "2/27"}, {day: 28, date: "2/28"}],
+    3: [{day: 3, date: "3/3"}, {day: 4, date: "3/4"}, {day: 5, date: "3/5"}, {day: 6, date: "3/6"}, {day: 7, date: "3/7"}, {day: 10, date: "3/10"}, {day: 11, date: "3/11"}, {day: 12, date: "3/12"}, {day: 13, date: "3/13"}, {day: 14, date: "3/14"}, {day: 17, date: "3/17"}, {day: 18, date: "3/18"}, {day: 19, date: "3/19"}, {day: 20, date: "3/20"}, {day: 21, date: "3/21"}, {day: 24, date: "3/24"}, {day: 25, date: "3/25"}, {day: 26, date: "3/26"}, {day: 27, date: "3/27"}, {day: 28, date: "3/28"}, {day: 31, date: "3/31"}],
+    4: [{day: 1, date: "4/1"}, {day: 2, date: "4/2"}, {day: 3, date: "4/3"}, {day: 4, date: "4/4"}, {day: 7, date: "4/7"}, {day: 8, date: "4/8"}, {day: 9, date: "4/9"}, {day: 10, date: "4/10"}, {day: 11, date: "4/11"}, {day: 14, date: "4/14"}, {day: 15, date: "4/15"}, {day: 16, date: "4/16"}, {day: 17, date: "4/17"}, {day: 18, date: "4/18"}, {day: 21, date: "4/21"}, {day: 22, date: "4/22"}, {day: 23, date: "4/23"}, {day: 24, date: "4/24"}, {day: 25, date: "4/25"}, {day: 28, date: "4/28"}, {day: 29, date: "4/29"}, {day: 30, date: "4/30"}],
+    5: [{day: 1, date: "5/1"}, {day: 2, date: "5/2"}, {day: 5, date: "5/5"}, {day: 6, date: "5/6"}, {day: 7, date: "5/7"}, {day: 8, date: "5/8"}, {day: 9, date: "5/9"}, {day: 12, date: "5/12"}, {day: 13, date: "5/13"}, {day: 14, date: "5/14"}, {day: 15, date: "5/15"}, {day: 16, date: "5/16"}, {day: 19, date: "5/19"}, {day: 20, date: "5/20"}, {day: 21, date: "5/21"}, {day: 22, date: "5/22"}, {day: 23, date: "5/23"}, {day: 26, date: "5/26"}, {day: 27, date: "5/27"}, {day: 28, date: "5/28"}, {day: 29, date: "5/29"}, {day: 30, date: "5/30"}],
+    6: [{day: 2, date: "6/2"}, {day: 3, date: "6/3"}, {day: 4, date: "6/4"}, {day: 5, date: "6/5"}, {day: 6, date: "6/6"}, {day: 9, date: "6/9"}, {day: 10, date: "6/10"}, {day: 11, date: "6/11"}, {day: 12, date: "6/12"}, {day: 13, date: "6/13"}, {day: 16, date: "6/16"}, {day: 17, date: "6/17"}, {day: 18, date: "6/18"}, {day: 19, date: "6/19"}, {day: 20, date: "6/20"}, {day: 23, date: "6/23"}, {day: 24, date: "6/24"}, {day: 25, date: "6/25"}, {day: 26, date: "6/26"}, {day: 27, date: "6/27"}, {day: 30, date: "6/30"}],
+    7: [{day: 1, date: "7/1"}, {day: 2, date: "7/2"}, {day: 3, date: "7/3"}, {day: 4, date: "7/4"}, {day: 7, date: "7/7"}, {day: 8, date: "7/8"}, {day: 9, date: "7/9"}, {day: 10, date: "7/10"}, {day: 11, date: "7/11"}, {day: 14, date: "7/14"}, {day: 15, date: "7/15"}, {day: 16, date: "7/16"}, {day: 17, date: "7/17"}, {day: 18, date: "7/18"}, {day: 21, date: "7/21"}, {day: 22, date: "7/22"}, {day: 23, date: "7/23"}, {day: 24, date: "7/24"}, {day: 25, date: "7/25"}, {day: 28, date: "7/28"}, {day: 29, date: "7/29"}, {day: 30, date: "7/30"}, {day: 31, date: "7/31"}],
+    8: [{day: 1, date: "8/1"}, {day: 4, date: "8/4"}, {day: 5, date: "8/5"}, {day: 6, date: "8/6"}, {day: 7, date: "8/7"}, {day: 8, date: "8/8"}, {day: 11, date: "8/11"}, {day: 12, date: "8/12"}, {day: 13, date: "8/13"}, {day: 14, date: "8/14"}, {day: 15, date: "8/15"}, {day: 18, date: "8/18"}, {day: 19, date: "8/19"}, {day: 20, date: "8/20"}, {day: 21, date: "8/21"}, {day: 22, date: "8/22"}, {day: 25, date: "8/25"}, {day: 26, date: "8/26"}, {day: 27, date: "8/27"}, {day: 28, date: "8/28"}, {day: 29, date: "8/29"}],
+    9: [{day: 1, date: "9/1"}, {day: 2, date: "9/2"}, {day: 3, date: "9/3"}, {day: 4, date: "9/4"}, {day: 5, date: "9/5"}, {day: 8, date: "9/8"}, {day: 9, date: "9/9"}, {day: 10, date: "9/10"}, {day: 11, date: "9/11"}, {day: 12, date: "9/12"}, {day: 15, date: "9/15"}, {day: 16, date: "9/16"}, {day: 17, date: "9/17"}, {day: 18, date: "9/18"}, {day: 19, date: "9/19"}, {day: 22, date: "9/22"}, {day: 23, date: "9/23"}, {day: 24, date: "9/24"}, {day: 25, date: "9/25"}, {day: 26, date: "9/26"}, {day: 29, date: "9/29"}, {day: 30, date: "9/30"}],
+    10: [{day: 1, date: "10/1"}, {day: 2, date: "10/2"}, {day: 3, date: "10/3"}, {day: 6, date: "10/6"}, {day: 7, date: "10/7"}, {day: 8, date: "10/8"}, {day: 9, date: "10/9"}, {day: 10, date: "10/10"}, {day: 13, date: "10/13"}, {day: 14, date: "10/14"}, {day: 15, date: "10/15"}, {day: 16, date: "10/16"}, {day: 17, date: "10/17"}, {day: 20, date: "10/20"}, {day: 21, date: "10/21"}, {day: 22, date: "10/22"}, {day: 23, date: "10/23"}, {day: 24, date: "10/24"}, {day: 27, date: "10/27"}, {day: 28, date: "10/28"}, {day: 29, date: "10/29"}, {day: 30, date: "10/30"}, {day: 31, date: "10/31"}],
+    11: [{day: 3, date: "11/3"}, {day: 4, date: "11/4"}, {day: 5, date: "11/5"}, {day: 6, date: "11/6"}, {day: 7, date: "11/7"}, {day: 10, date: "11/10"}, {day: 11, date: "11/11"}, {day: 12, date: "11/12"}, {day: 13, date: "11/13"}, {day: 14, date: "11/14"}, {day: 17, date: "11/17"}, {day: 18, date: "11/18"}, {day: 19, date: "11/19"}, {day: 20, date: "11/20"}, {day: 21, date: "11/21"}, {day: 24, date: "11/24"}, {day: 25, date: "11/25"}, {day: 26, date: "11/26"}, {day: 27, date: "11/27"}, {day: 28, date: "11/28"}],
+    12: [{day: 1, date: "12/1"}, {day: 2, date: "12/2"}, {day: 3, date: "12/3"}, {day: 4, date: "12/4"}, {day: 5, date: "12/5"}, {day: 8, date: "12/8"}, {day: 9, date: "12/9"}, {day: 10, date: "12/10"}, {day: 11, date: "12/11"}, {day: 12, date: "12/12"}, {day: 15, date: "12/15"}, {day: 16, date: "12/16"}, {day: 17, date: "12/17"}, {day: 18, date: "12/18"}, {day: 19, date: "12/19"}, {day: 22, date: "12/22"}, {day: 23, date: "12/23"}, {day: 24, date: "12/24"}, {day: 25, date: "12/25"}, {day: 26, date: "12/26"}, {day: 29, date: "12/29"}, {day: 30, date: "12/30"}, {day: 31, date: "12/31"}]
+};
+
+// 初始化表格
+function initTable() {
+    const headerRow = document.querySelector('.header-row');
+    const tableBody = document.getElementById('table-body');
+
+    // 清除現有的日期欄位，保留座號、空白和總計欄
+    while (headerRow.children.length > 3) { // 原為2，現在是3 (座號, 空白, 總計)
+        headerRow.removeChild(headerRow.children[1]); // 移除座號後的第二個元素 (舊的日期)
+    }
+
+    // 獲取當前月份的工作日
+    const monthWorkdays = workdays2025[currentMonth] || [];
+
+    // 添加日期欄位
+    for (let i = 0; i < monthWorkdays.length; i++) {
+        const th = document.createElement('th');
+        th.textContent = monthWorkdays[i].date; // 直接顯示 m/d
+        th.className = 'date-cell header-date';
+        headerRow.insertBefore(th, headerRow.lastElementChild); // 插入到總計欄位之前
+    }
+
+    // 清除現有的學生行
+    tableBody.innerHTML = '';
+
+    // 按座號排序學生
+    students.sort((a, b) => a.number - b.number);
+
+    // 添加學生行
+    students.forEach(student => {
+        const tr = document.createElement('tr');
+
+        // 學生座號單元格
+        const numberTd = document.createElement('td');
+        numberTd.textContent = student.number;
+        numberTd.className = 'student-number';
+        numberTd.dataset.studentId = student.id;
+        numberTd.title = student.name; // 顯示學生姓名為提示
+        numberTd.addEventListener('click', function() {
+            editStudent(student.id);
+        });
+        tr.appendChild(numberTd);
+
+        // 添加空白單元格
+        const emptyTd = document.createElement('td');
+        emptyTd.className = 'empty-cell';
+        tr.appendChild(emptyTd);
+
+
+        // 日期單元格
+        for (let i = 0; i < monthWorkdays.length; i++) {
+            const td = document.createElement('td');
+            td.className = 'date-cell';
+            td.dataset.date = monthWorkdays[i].day;
+            td.dataset.studentId = student.id;
+
+            // 檢查是否有記錄
+            const key = `${currentMonth}-${monthWorkdays[i].day}-${student.id}`;
+            if (attendance[key]) {
+                if (attendance[key].type === 'tardy') {
+                    td.textContent = 'X';
+                    td.classList.add('tardy');
+                } else if (attendance[key].type === 'leave') {
+                    td.innerHTML = '<div class="triangle mx-auto"></div>';
+                    td.classList.add('leave');
+                } else if (attendance[key].type === 'absent') { // 新增曠課處理
+                    td.textContent = '曠';
+                    td.classList.add('absent');
+                }
+
+                // 如果有備註，添加提示
+                if (attendance[key].note) {
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.textContent = attendance[key].note;
+                    td.appendChild(tooltip);
+                }
+            }
+
+            // 添加點擊事件
+            td.addEventListener('click', function() {
+                openNoteModal(this);
+            });
+            tr.appendChild(td);
+        }
+
+        // 總計單元格
+        const totalTd = document.createElement('td');
+        totalTd.className = 'total-column';
+        totalTd.textContent = calculateStudentTotal(student.id);
+        tr.appendChild(totalTd);
+
+        tableBody.appendChild(tr);
+    });
 }
+
+// 編輯學生資訊
+function editStudent(studentId) {
+    currentStudentId = studentId;
+    const student = students.find(s => s.id === studentId);
+    if (!student) return;
+
+    document.getElementById('student-number-input').value = student.number; // 使用新的ID
+    document.getElementById('student-name').value = student.name;
+
+    document.getElementById('student-modal').classList.remove('hidden');
+}
+
+// 儲存學生資訊
+document.getElementById('save-student').addEventListener('click', function() {
+    if (!currentStudentId) return;
+
+    const student = students.find(s => s.id === currentStudentId);
+    if (!student) return;
+
+    const newNumber = parseInt(document.getElementById('student-number-input').value); // 使用新的ID
+    const newName = document.getElementById('student-name').value.trim();
+
+    if (isNaN(newNumber) || newNumber <= 0) {
+        alert('請輸入有效的座號！');
+        return;
+    }
+
+    if (!newName) {
+        alert('請輸入學生姓名！');
+        return;
+    }
+
+    // 檢查座號是否重複
+    const duplicateNumber = students.find(s => s.id !== currentStudentId && s.number === newNumber);
+    if (duplicateNumber) {
+        alert('座號已存在，請使用其他座號！');
+        return;
+    }
+
+    student.number = newNumber;
+    student.name = newName;
+
+    document.getElementById('student-modal').classList.add('hidden');
+    currentStudentId = null;
+    initTable(); // 重新渲染表格
+});
+
+// 取消編輯學生
+document.getElementById('cancel-student').addEventListener('click', function() {
+    document.getElementById('student-modal').classList.add('hidden');
+    currentStudentId = null;
+});
+
+// 計算學生缺席總數 (遲到 + 曠課)
+function calculateStudentTotal(studentId) {
+    let total = 0;
+    const monthWorkdays = workdays2025[currentMonth] || [];
+
+    for (let i = 0; i < monthWorkdays.length; i++) {
+        const key = `${currentMonth}-${monthWorkdays[i].day}-${studentId}`;
+        if (attendance[key] && (attendance[key].type === 'tardy' || attendance[key].type === 'absent')) { // 遲到或曠課都計入總數
+            total++;
+        }
+    }
+    return total;
+}
+
+// 更新所有總計
+function updateAllTotals() {
+    students.forEach(student => {
+        const totalCell = document.querySelector(`tr:has(td[data-student-id="${student.id}"]:first-child) td.total-column`);
+        if (totalCell) {
+            totalCell.textContent = calculateStudentTotal(student.id);
+        }
+    });
+}
+
+// 打開標記對話框
+function openNoteModal(cell) {
+    currentCell = cell;
+    const studentId = parseInt(cell.dataset.studentId);
+    const date = parseInt(cell.dataset.date);
+    const key = `${currentMonth}-${date}-${studentId}`;
+
+    const noteModal = document.getElementById('note-modal');
+    const noteText = document.getElementById('note-text');
+    const removeMarkBtn = document.getElementById('remove-mark');
+
+    // 重置標記類型按鈕樣式
+    currentMarkType = null;
+    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');
+    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');
+    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500'); // 新增曠課按鈕樣式重置
+
+    // 如果已有記錄，顯示備註和標記類型
+    if (attendance[key]) {
+        noteText.value = attendance[key].note || '';
+        currentMarkType = attendance[key].type;
+
+        if (currentMarkType === 'tardy') {
+            document.getElementById('mark-tardy').classList.add('ring-2', 'ring-red-500');
+        } else if (currentMarkType === 'leave') {
+            document.getElementById('mark-leave').classList.add('ring-2', 'ring-blue-500');
+        } else if (currentMarkType === 'absent') { // 新增曠課按鈕選中樣式
+            document.getElementById('mark-absent').classList.add('ring-2', 'ring-yellow-500');
+        }
+        removeMarkBtn.style.display = 'block';
+    } else {
+        noteText.value = '';
+        removeMarkBtn.style.display = 'none';
+    }
+    noteModal.classList.remove('hidden');
+}
+
+// 標記按鈕事件監聽
+document.getElementById('mark-tardy').addEventListener('click', function() {
+    currentMarkType = 'tardy';
+    this.classList.add('ring-2', 'ring-red-500');
+    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');
+    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');
+});
+
+document.getElementById('mark-leave').addEventListener('click', function() {
+    currentMarkType = 'leave';
+    this.classList.add('ring-2', 'ring-blue-500');
+    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');
+    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');
+});
+
+document.getElementById('mark-absent').addEventListener('click', function() { // 新增曠課按鈕事件
+    currentMarkType = 'absent';
+    this.classList.add('ring-2', 'ring-yellow-500');
+    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');
+    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');
+});
+
+
+// 儲存備註和標記
+document.getElementById('save-note').addEventListener('click', function() {
+    if (!currentCell || !currentMarkType) return;
+
+    const studentId = parseInt(currentCell.dataset.studentId);
+    const date = parseInt(currentCell.dataset.date);
+    const key = `${currentMonth}-${date}-${studentId}`;
+    const noteTextValue = document.getElementById('note-text').value.trim();
+
+    // 儲存記錄
+    attendance[key] = {
+        type: currentMarkType,
+        note: noteTextValue
+    };
+
+    // 更新單元格顯示
+    currentCell.classList.remove('tardy', 'leave', 'absent'); // 移除所有相關class
+    currentCell.textContent = ''; // 清空內容
+    currentCell.innerHTML = ''; // 清空HTML內容 (以防萬一有triangle)
+
+
+    if (currentMarkType === 'tardy') {
+        currentCell.textContent = 'X';
+        currentCell.classList.add('tardy');
+    } else if (currentMarkType === 'leave') {
+        currentCell.innerHTML = '<div class="triangle mx-auto"></div>';
+        currentCell.classList.add('leave');
+    } else if (currentMarkType === 'absent') { // 新增曠課顯示
+        currentCell.textContent = '曠';
+        currentCell.classList.add('absent');
+    }
+
+    // 如果有備註，添加提示
+    const existingTooltip = currentCell.querySelector('.tooltip');
+    if (existingTooltip) {
+        currentCell.removeChild(existingTooltip);
+    }
+
+    if (noteTextValue) {
+        const tooltip = document.createElement('div');
+        tooltip.className = 'tooltip';
+        tooltip.textContent = noteTextValue;
+        currentCell.appendChild(tooltip);
+    }
+
+    updateAllTotals(); // 更新總計
+    // 關閉對話框並重置按鈕樣式
+    document.getElementById('note-modal').classList.add('hidden');
+    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');
+    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');
+    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');
+    currentCell = null;
+    currentMarkType = null;
+});
+
+// 取消標記
+document.getElementById('cancel-note').addEventListener('click', function() {
+    document.getElementById('note-modal').classList.add('hidden');
+    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');
+    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');
+    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');
+    currentCell = null;
+    currentMarkType = null;
+});
+
+// 移除標記
+document.getElementById('remove-mark').addEventListener('click', function() {
+    if (!currentCell) return;
+
+    const studentId = parseInt(currentCell.dataset.studentId);
+    const date = parseInt(currentCell.dataset.date);
+    const key = `${currentMonth}-${date}-${studentId}`;
+
+    delete attendance[key]; // 移除記錄
+
+    // 更新單元格顯示
+    currentCell.textContent = '';
+    currentCell.innerHTML = ''; // 清除可能存在的 triangle
+    currentCell.classList.remove('tardy', 'leave', 'absent');
+
+    // 移除提示
+    const tooltip = currentCell.querySelector('.tooltip');
+    if (tooltip) {
+        currentCell.removeChild(tooltip);
+    }
+
+    updateAllTotals(); // 更新總計
+
+    // 關閉對話框並重置
+    document.getElementById('note-modal').classList.add('hidden');
+    document.getElementById('mark-tardy').classList.remove('ring-2', 'ring-red-500');
+    document.getElementById('mark-leave').classList.remove('ring-2', 'ring-blue-500');
+    document.getElementById('mark-absent').classList.remove('ring-2', 'ring-yellow-500');
+    currentCell = null;
+    currentMarkType = null;
+});
+
+// 更新表格按鈕
+document.getElementById('update-table').addEventListener('click', function() {
+    currentMonth = document.getElementById('month-select').value;
+    initTable();
+});
+
+// 新增學生按鈕
+document.getElementById('add-student').addEventListener('click', function() {
+    const maxNumber = students.length > 0 ? Math.max(...students.map(s => s.number)) : 0;
+    const newNumber = maxNumber + 1;
+    const newId = students.length > 0 ? Math.max(...students.map(s => s.id)) + 1 : 1;
+    students.push({ id: newId, number: newNumber, name: `學生${newNumber}` });
+    initTable();
+});
+
+// 儲存資料按鈕
+document.getElementById('save-data').addEventListener('click', function() {
+    localStorage.setItem('attendanceStudentsGloria', JSON.stringify(students)); // 修改儲存鍵名
+    localStorage.setItem('attendanceDataGloria', JSON.stringify(attendance)); // 修改儲存鍵名
+    alert('資料已儲存！');
+});
+
+// 防止觸控螢幕上的雙擊縮放
+document.addEventListener('touchstart', function(event) {
+    if (event.touches.length > 1) {
+        event.preventDefault();
+    }
+}, { passive: false });
+
+// 防止觸控螢幕上的縮放手勢 - 註解掉以允許正常的頁面縮放
+/*
+document.addEventListener('touchmove', function(event) {
+    if (event.touches.length > 1) {
+        event.preventDefault();
+    }
+}, { passive: false });
+*/
+
+// 修復iOS上的點擊延遲問題 (如果需要)
+let lastTouchEnd = 0;
+document.addEventListener('touchend', function(event) {
+    const now = Date.now();
+    const DELAY = 300; // 點擊延遲閾值
+
+    // 檢查是否為快速連續點擊 (可能導致縮放)
+    // 如果 currentCell (正在操作的單元格) 存在，則不阻止預設行為，允許彈出 modal
+    if (now - lastTouchEnd <= DELAY && !currentCell) {
+         // event.preventDefault(); // 謹慎使用，可能會阻止正常的互動
+    }
+    lastTouchEnd = now;
+}, false);
+
+
+// 初始化頁面
+initTable();
+</script>
+</body>
+</html>
